@@ -1,11 +1,32 @@
 /*global defineSuite*/
 defineSuite([
-    'Core/ComponentDatatype',
-    'Scene/Cesium3DTileFeatureTableResources'
-], function(
-    ComponentDatatype,
-    Cesium3DTileFeatureTableResources) {
+        'Core/ComponentDatatype',
+        'Scene/Cesium3DTileFeatureTableResources'
+    ], function(
+        ComponentDatatype,
+        Cesium3DTileFeatureTableResources) {
     'use strict';
+
+    it('getTypedArrayForSemantic throws exception if byteOffset is not defined', function() {
+        var featureTable = new Cesium3DTileFeatureTableResources();
+        expect(function() {
+            featureTable.getTypedArrayForSemantic('TEST', undefined, ComponentDatatype.UNSIGNED_INT, 5, 1);
+        }).toThrowDeveloperError();
+    });
+
+    it('getTypedArrayForSemantic throws exception if componentType is not defined', function() {
+        var featureTable = new Cesium3DTileFeatureTableResources();
+        expect(function() {
+            featureTable.getTypedArrayForSemantic('TEST', 0, undefined, 5, 1);
+        }).toThrowDeveloperError();
+    });
+
+    it('getTypedArrayForSemantic throws exception if count is not defined', function() {
+        var featureTable = new Cesium3DTileFeatureTableResources();
+        expect(function() {
+            featureTable.getTypedArrayForSemantic('TEST', 0, ComponentDatatype.UNSIGNED_INT, undefined, 1);
+        }).toThrowDeveloperError();
+    });
 
     it('loads from JSON', function() {
         var featureTable = new Cesium3DTileFeatureTableResources({

@@ -268,7 +268,7 @@ define([
             var featureTableResources = new Cesium3DTileFeatureTableResources(featureTableJSON, featureTableBinary);
             var instancesLength = featureTableResources.getGlobalProperty('INSTANCES_LENGTH', ComponentDatatype.UNSIGNED_INT);
             if (Array.isArray(instancesLength)) {
-                instancesLength = instancesLength[0];
+                instancesLength = instancesLength;
             }
             featureTableResources.featuresLength = instancesLength;
 
@@ -304,7 +304,7 @@ define([
                 gltf : undefined,
                 basePath : undefined
             };
-            
+
             if (gltfFormat === 0) {
                 var gltfUrl = getStringFromTypedArray(gltfView);
                 var baseUrl = defaultValue(this._tileset.baseUrl, '');
@@ -402,7 +402,7 @@ define([
                 instanceScale.z = 1.0;
                 var scale = featureTableResources.getProperty('SCALE', i, ComponentDatatype.FLOAT);
                 if (defined(scale)) {
-                    Cartesian3.multiplyByScalar(instanceScale, scale[0], instanceScale);
+                    Cartesian3.multiplyByScalar(instanceScale, scale, instanceScale);
                 }
                 var nonUniformScale = featureTableResources.getProperty('SCALE_NON_UNIFORM', i, ComponentDatatype.FLOAT, 3);
                 if (defined(nonUniformScale)) {
@@ -423,7 +423,7 @@ define([
                 var modelMatrix = instanceTransform.clone();
                 instances[i] = {
                     modelMatrix : modelMatrix,
-                    batchId : batchId[0]
+                    batchId : batchId
                 };
             }
 

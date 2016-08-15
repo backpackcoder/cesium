@@ -416,7 +416,7 @@ define([
                 var batchId = featureTableResources.getProperty('BATCH_ID', i , ComponentDatatype.UNSIGNED_SHORT);
                 if (!defined(batchId)) {
                     // If BATCH_ID semantic is undefined, batchId is just the instance number
-                    batchId = [i];
+                    batchId = i;
                 }
                 // Create the model matrix and the instance
                 Matrix4.fromTranslationRotationScale(instanceTranslationRotationScale, instanceTransform);
@@ -430,16 +430,16 @@ define([
             var modelInstanceCollection = new ModelInstanceCollection(collectionOptions);
             this._modelInstanceCollection = modelInstanceCollection;
             this.state = Cesium3DTileContentState.PROCESSING;
-            this.contentReadyToProcessPromise.resolve(this);
+            this._contentReadyToProcessPromise.resolve(this);
 
             var that = this;
 
             modelInstanceCollection.readyPromise.then(function(modelInstanceCollection) {
                 that.state = Cesium3DTileContentState.READY;
-                that.readyPromise.resolve(that);
+                that._readyPromise.resolve(that);
             }).otherwise(function(error) {
                 that.state = Cesium3DTileContentState.FAILED;
-                that.readyPromise.reject(error);
+                that._readyPromise.reject(error);
             });
         }
     };

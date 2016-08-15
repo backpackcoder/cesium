@@ -85,11 +85,11 @@ define([
          * The following properties are part of the {@link Cesium3DTileContent} interface.
          */
         this.state = Cesium3DTileContentState.UNLOADED;
-        this.contentReadyToProcessPromise = when.defer();
-        this.readyPromise = when.defer();
         this.batchTableResources = undefined;
         this.featurePropertiesDirty = false;
 
+        this._contentReadyToProcessPromise = when.defer();
+        this._readyPromise = when.defer();
         this._features = undefined;
     }
 
@@ -109,6 +109,24 @@ define([
         innerContents : {
             get : function() {
                 return undefined;
+            }
+        },
+
+        /**
+         * Part of the {@link Cesium3DTileContent} interface.
+         */
+        contentReadyToProcessPromise : {
+            get : function() {
+                return this._contentReadyToProcessPromise.promise;
+            }
+        },
+
+        /**
+         * Part of the {@link Cesium3DTileContent} interface.
+         */
+        readyPromise : {
+            get : function() {
+                return this._readyPromise.promise;
             }
         }
     });
@@ -162,18 +180,22 @@ define([
             type : RequestType.TILES3D,
             distance : distance
         }));
-        if (defined(promise)) {
-            this.state = Cesium3DTileContentState.LOADING;
-            promise.then(function(arrayBuffer) {
-                if (that.isDestroyed()) {
-                    return when.reject('tileset is destroyed');
-                }
-                that.initialize(arrayBuffer);
-            }).otherwise(function(error) {
-                that.state = Cesium3DTileContentState.FAILED;
-                that.readyPromise.reject(error);
-            });
+
+        if (!defined(promise)) {
+            return false;
         }
+
+        this.state = Cesium3DTileContentState.LOADING;
+        promise.then(function(arrayBuffer) {
+            if (that.isDestroyed()) {
+                return when.reject('tileset is destroyed');
+            }
+            that.initialize(arrayBuffer);
+        }).otherwise(function(error) {
+            that.state = Cesium3DTileContentState.FAILED;
+            that._readyPromise.reject(error);
+        });
+        return true;
     };
 
     /**
@@ -282,7 +304,7 @@ define([
                 gltf : undefined,
                 basePath : undefined
             };
-
+            
             if (gltfFormat === 0) {
                 var gltfUrl = getStringFromTypedArray(gltfView);
                 var baseUrl = defaultValue(this._tileset.baseUrl, '');
@@ -396,7 +418,6 @@ define([
                     // If BATCH_ID semantic is undefined, batchId is just the instance number
                     batchId = [i];
                 }
-
                 // Create the model matrix and the instance
                 Matrix4.fromTranslationRotationScale(instanceTranslationRotationScale, instanceTransform);
                 var modelMatrix = instanceTransform.clone();
@@ -413,7 +434,7 @@ define([
 
             var that = this;
 
-            when(modelInstanceCollection.readyPromise).then(function(modelInstanceCollection) {
+            modelInstanceCollection.readyPromise.then(function(modelInstanceCollection) {
                 that.state = Cesium3DTileContentState.READY;
                 that.readyPromise.resolve(that);
             }).otherwise(function(error) {

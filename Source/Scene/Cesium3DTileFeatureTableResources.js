@@ -50,7 +50,11 @@ define([
                 // This is a reference to the binary
                 count = defaultValue(count, 1);
                 var typedArray = this.getTypedArrayForSemantic(semantic, byteOffset, componentType, count, 1);
-                return typedArray.subarray(0, count);
+                var subArray = typedArray.subarray(0, count);
+                if (subArray.length === 1) {
+                    return subArray[0];
+                }
+                return subArray;
             }
         }
         return jsonValue;
@@ -64,7 +68,11 @@ define([
                 // This is a reference to the binary
                 featureSize = defaultValue(featureSize, 1);
                 var typedArray = this.getTypedArrayForSemantic(semantic, byteOffset, componentType, this.featuresLength, featureSize);
-                return typedArray.subarray(featureId * featureSize, featureId * featureSize + featureSize);
+                var subArray = typedArray.subarray(featureId * featureSize, featureId * featureSize + featureSize);
+                if (subArray.length === 1) {
+                    return subArray[0];
+                }
+                return subArray;
             }
         }
         if (Array.isArray(jsonValue)) {

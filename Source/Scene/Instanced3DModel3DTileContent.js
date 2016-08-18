@@ -268,7 +268,7 @@ define([
             var featureTableResources = new Cesium3DTileFeatureTableResources(featureTableJSON, featureTableBinary);
             var instancesLength = featureTableResources.getGlobalProperty('INSTANCES_LENGTH', ComponentDatatype.UNSIGNED_INT);
             if (Array.isArray(instancesLength)) {
-                instancesLength = instancesLength[0];
+                instancesLength = instancesLength;
             }
             featureTableResources.featuresLength = instancesLength;
 
@@ -413,7 +413,7 @@ define([
                 instanceScale.z = 1.0;
                 var scale = featureTableResources.getProperty('SCALE', i, ComponentDatatype.FLOAT);
                 if (defined(scale)) {
-                    Cartesian3.multiplyByScalar(instanceScale, scale[0], instanceScale);
+                    Cartesian3.multiplyByScalar(instanceScale, scale, instanceScale);
                 }
                 var nonUniformScale = featureTableResources.getProperty('SCALE_NON_UNIFORM', i, ComponentDatatype.FLOAT, 3);
                 if (defined(nonUniformScale)) {
@@ -427,7 +427,7 @@ define([
                 var batchId = featureTableResources.getProperty('BATCH_ID', i , ComponentDatatype.UNSIGNED_SHORT);
                 if (!defined(batchId)) {
                     // If BATCH_ID semantic is undefined, batchId is just the instance number
-                    batchId = [i];
+                    batchId = i;
                 }
 
                 // Create the model matrix and the instance
@@ -435,7 +435,7 @@ define([
                 var modelMatrix = instanceTransform.clone();
                 instances[i] = {
                     modelMatrix : modelMatrix,
-                    batchId : batchId[0]
+                    batchId : batchId
                 };
             }
 

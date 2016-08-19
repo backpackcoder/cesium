@@ -280,7 +280,7 @@ define([
         var featureTableBinary = new ArrayBuffer(12); // Enough space to hold 3 floats
         var featureTableBinaryByteLength = featureTableBinary.byteLength;
 
-        var headerByteLength = 20;
+        var headerByteLength = 28;
         var byteLength = headerByteLength + featureTableJSONByteLength + featureTableBinaryByteLength;
         var buffer = new ArrayBuffer(byteLength);
         var view = new DataView(buffer);
@@ -292,6 +292,8 @@ define([
         view.setUint32(8, byteLength, true);                    // byteLength
         view.setUint32(12, featureTableJSONByteLength, true);   // featureTableJSONByteLength
         view.setUint32(16, featureTableBinaryByteLength, true); // featureTableBinaryByteLength
+        view.setUint32(20, 0, true);                            // batchTableJSONByteLength
+        view.setUint32(24, 0, true);                            // batchTableBinaryByteLength
 
         var i;
         var byteOffset = headerByteLength;

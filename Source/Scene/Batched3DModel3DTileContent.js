@@ -210,6 +210,7 @@ define([
         byteOffset += sizeOfUint32;
         if (batchTableByteLength > 0) {
             var batchTableString = getStringFromTypedArray(uint8Array, byteOffset, batchTableByteLength);
+            var batchTableJson = JSON.parse(batchTableString);
             byteOffset += batchTableByteLength;
 
             // PERFORMANCE_IDEA: is it possible to allocate this on-demand?  Perhaps keep the
@@ -217,7 +218,7 @@ define([
             //
             // We could also make another request for it, but that would make the property set/get
             // API async, and would double the number of numbers in some cases.
-            batchTableResources.batchTable = JSON.parse(batchTableString);
+            batchTableResources.setBatchTable(batchTableJson);
         }
 
         var gltfByteLength = byteStart + byteLength - byteOffset;

@@ -2,14 +2,19 @@
 define([
         '../Core/arrayFill',
         '../Core/Cartesian2',
+        '../Core/Cartesian3',
         '../Core/Cartesian4',
         '../Core/clone',
         '../Core/Color',
         '../Core/combine',
+        '../Core/ComponentDatatype',
         '../Core/defaultValue',
         '../Core/defined',
         '../Core/destroyObject',
         '../Core/DeveloperError',
+        '../Core/Matrix2',
+        '../Core/Matrix3',
+        '../Core/Matrix4',
         '../Core/PixelFormat',
         '../Renderer/ContextLimits',
         '../Renderer/DrawCommand',
@@ -26,14 +31,19 @@ define([
     ], function(
         arrayFill,
         Cartesian2,
+        Cartesian3,
         Cartesian4,
         clone,
         Color,
         combine,
+        ComponentDatatype,
         defaultValue,
         defined,
         destroyObject,
         DeveloperError,
+        Matrix2,
+        Matrix3,
+        Matrix4,
         PixelFormat,
         ContextLimits,
         DrawCommand,
@@ -65,7 +75,12 @@ define([
         /**
          * @private
          */
-        this.batchTable = undefined;
+        this.batchTableJson = undefined;
+        /**
+         * @private
+         */
+        this.batchTableBinary = undefined;
+        this._batchTableBinaryProperties = undefined;
 
         // PERFORMANCE_IDEA: These parallel arrays probably generate cache misses in get/set color/show
         // and use A LOT of memory.  How can we use less memory?
@@ -282,6 +297,94 @@ define([
             result);
     };
 
+    // TODO : put this helper somewhere else?
+    function getComponentCountFromType(type) {
+        switch (type) {
+            case 'SCALAR':
+                return 1;
+            case 'VEC2':
+                return 2;
+            case 'VEC3':
+                return 3;
+            case 'VEC4':
+                return 4;
+            case 'MAT2':
+                return 4;
+            case 'MAT3':
+                return 9;
+            case 'MAT4':
+                return 16;
+            default:
+                throw new DeveloperError('type is not a valid value.');
+        }
+    }
+    
+    // TODO : put this helper somewhere else?
+    function getClassFromType(type) {
+        switch (type) {
+            case 'SCALAR':
+                return undefined;
+            case 'VEC2':
+                return Cartesian2;
+            case 'VEC3':
+                return Cartesian3;
+            case 'VEC4':
+                return Cartesian4;
+            case 'MAT2':
+                return Matrix2;
+            case 'MAT3':
+                return Matrix3;
+            case 'MAT4':
+                return Matrix4;
+            default:
+                throw new DeveloperError('type is not a valid value.');
+        }
+    }
+
+    Cesium3DTileBatchTableResources.prototype.setBatchTable = function(json, binary) {
+        this.batchTableJson = json;
+        this.batchTableBinary = binary;
+
+        // Get all the binary properties
+        if (defined(binary)) {
+            for (var name in json) {
+                if (json.hasOwnProperty(name)) {
+                    var property = json[name];
+                    var byteOffset = property.byteOffset;
+                    if (defined(byteOffset)) {
+                        // This is a binary property
+                        var componentType = ComponentDatatype.fromName(property.componentType);
+                        var type = property.type;
+                        //>>includeStart('debug', pragmas.debug);
+                        if (!defined(componentType)) {
+                            throw new DeveloperError('componentType is required.');
+                        }
+                        if (!defined(type)) {
+                            throw new DeveloperError('type is required.');
+                        }
+                        if (!defined(binary)) {
+                            throw new DeveloperError('Property ' + name + ' requires a batch table binary');
+                        }
+                        //>>includeEnd('debug');
+
+                        var componentCount = getComponentCountFromType(type);
+                        var typedArray = ComponentDatatype.createArrayBufferView(componentType,
+                            binary.buffer, binary.byteOffset + byteOffset, this.featuresLength * componentCount);
+
+                        if (!defined(this._batchTableBinaryProperties)) {
+                            this._batchTableBinaryProperties = {};
+                        }
+                        this._batchTableBinaryProperties[name] = {
+                            typedArray : typedArray,
+                            componentCount : componentCount,
+                            type : getClassFromType(type)
+                        };
+                    }
+                }
+            }
+        }
+    };
+
     Cesium3DTileBatchTableResources.prototype.hasProperty = function(name) {
         //>>includeStart('debug', pragmas.debug);
         if (!defined(name)) {
@@ -289,20 +392,20 @@ define([
         }
         //>>includeEnd('debug');
 
-        var batchTable = this.batchTable;
-        return defined(batchTable) && defined(batchTable[name]);
+        var json = this.batchTableJson;
+        return defined(json) && defined(json[name]);
     };
 
     Cesium3DTileBatchTableResources.prototype.getPropertyNames = function() {
         var names = [];
-        var batchTable = this.batchTable;
+        var json = this.batchTableJson;
 
-        if (!defined(batchTable)) {
+        if (!defined(json)) {
             return names;
         }
 
-        for (var name in batchTable) {
-            if (batchTable.hasOwnProperty(name)) {
+        for (var name in json) {
+            if (json.hasOwnProperty(name)) {
                 names.push(name);
             }
         }
@@ -322,16 +425,28 @@ define([
         }
         //>>includeEnd('debug');
 
-        if (!defined(this.batchTable)) {
+        if (!defined(this.batchTableJson)) {
             return undefined;
         }
 
-        var propertyValues = this.batchTable[name];
+        if (defined(this._batchTableBinaryProperties)) {
+            var binaryProperty = this._batchTableBinaryProperties[name];
+            if (defined(binaryProperty)) {
+                var typedArray = binaryProperty.typedArray;
+                var componentCount = binaryProperty.componentCount;
+                if (componentCount === 1) {
+                    return typedArray[batchId];
+                } else {
+                    // TODO : good idea to have a result parameter?
+                    return binaryProperty.type.unpack(typedArray, batchId * componentCount);
+                }
+            }
+        }
 
+        var propertyValues = this.batchTableJson[name];
         if (!defined(propertyValues)) {
             return undefined;
         }
-
         return clone(propertyValues[batchId], true);
     };
 
@@ -347,17 +462,31 @@ define([
         }
         //>>includeEnd('debug');
 
-        if (!defined(this.batchTable)) {
-            // Tile payload did not have a batch table.  Create one for new user-defined properties.
-            this.batchTable = {};
+        if (defined(this._batchTableBinaryProperties)) {
+            var binaryProperty = this._batchTableBinaryProperties[name];
+            if (defined(binaryProperty)) {
+                var typedArray = binaryProperty.typedArray;
+                var componentCount = binaryProperty.componentCount;
+                if (componentCount === 1) {
+                    typedArray[batchId] = value;
+                } else {
+                    binaryProperty.type.pack(value, typedArray, batchId * componentCount);
+                }
+                return;
+            }
         }
 
-        var propertyValues = this.batchTable[name];
+        if (!defined(this.batchTableJson)) {
+            // Tile payload did not have a batch table. Create one for new user-defined properties.
+            this.batchTableJson = {};
+        }
+
+        var propertyValues = this.batchTableJson[name];
 
         if (!defined(propertyValues)) {
-            // Property does not exist.  Create it.
-            this.batchTable[name] = new Array(featuresLength);
-            propertyValues = this.batchTable[name];
+            // Property does not exist. Create it.
+            this.batchTableJson[name] = new Array(featuresLength);
+            propertyValues = this.batchTableJson[name];
         }
 
         propertyValues[batchId] = clone(value, true);

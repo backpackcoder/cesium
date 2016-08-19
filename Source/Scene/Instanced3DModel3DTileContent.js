@@ -282,7 +282,8 @@ define([
             this.batchTableResources = batchTableResources;
             if (batchTableJSONByteLength > 0) {
                 var batchTableString = getStringFromTypedArray(uint8Array, byteOffset, batchTableJSONByteLength);
-                batchTableResources.batchTable = JSON.parse(batchTableString);
+                var batchTableJson = JSON.parse(batchTableString);
+                batchTableResources.setBatchTable(batchTableJson);
                 byteOffset += batchTableJSONByteLength;
             }
 
